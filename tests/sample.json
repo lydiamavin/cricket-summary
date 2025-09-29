@@ -1,0 +1,12 @@
+{
+  "tournament_name": "IPL 2023",
+  "match_round": "Final",
+  "match_date": "2023-05-28",
+  "toss_winner": "India",
+  "final_scores": {
+    "team1": "India 250/5",
+    "team2": "Australia 245/7"
+  },
+  "result": "India won by 5 wickets",
+  "summary": "Virat Kohli scored a brilliant century off 50 balls. Mitchell Starc took 3 wickets early. India chased down the target in the last over with a six."
+}
