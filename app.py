@@ -1,10 +1,10 @@
 import streamlit as st
-from src.main import generate_comic
+from src.main import generate_poster
 from dotenv import load_dotenv
 
 load_dotenv()
 
-st.title("Cricket Comic Strip Generator")
+st.title("Cricket Match Poster Generator")
 
 tournament_name = st.text_input("Tournament Name", "IPL 2023")
 match_round = st.text_input("Match Round", "Final")
@@ -28,5 +28,5 @@ if st.button("Generate Comic Strip"):
         "result": result,
         "summary": summary
     }
-    generate_comic(data)
+    generate_poster(data)
     st.image("comic.png")

@@ -1,4 +1,4 @@
-# Cricket Comic Strip Generator - Agent Guidelines
+# Cricket Match Poster Generator - Agent Guidelines
 
 ## Setup
 - **Environment**: Copy `.env.example` to `.env` and add your API keys
@@ -6,7 +6,7 @@
 
 ## Commands
 - **Run app**: `streamlit run app.py`
-- **Generate comic**: `python src/main.py tests/sample.json`
+- **Generate poster**: `python src/main.py tests/sample.json`
 - **Test single function**: `python -c "from src.main import load_input; print(load_input('tests/sample.json'))"`
 - **Lint**: `python -m flake8 src/ app.py` (install flake8 first)
 - **Format**: `python -m black src/ app.py` (install black first)

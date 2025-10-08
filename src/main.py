@@ -16,16 +16,85 @@ def load_input(file_path):
             raise ValueError(f"Missing required field: {field}")
     return data
 
-def generate_comic(data, output_path='comic.png'):
+def extract_key_events(summary_text):
+    """Extract key cricket events from match summary text."""
+    import re
+
+    highlights = []
+
+    # Extract player performances (runs, wickets)
+    # Pattern for "Player scored X off Y balls" or "Player took W/X"
+    performance_pattern = r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)(?:\s+was|\s+scored|\s+took|\s+hit|\s+struck|\s+remained)?\s+(\d+(?:\.\d+)?(?:\s+off\s+\d+(?:\s+balls?)?)?(?:\s+for\s+\d+(?:\.\d+)?)?|wicket|wickets|boundary|four|six)'
+    performances = re.findall(performance_pattern, summary_text, re.IGNORECASE)
+
+    for match in performances:
+        player, stat = match
+        if 'wicket' in stat.lower():
+            highlights.append(f"{player}: {stat}")
+        elif 'boundary' in stat.lower() or 'four' in stat.lower() or 'six' in stat.lower():
+            highlights.append(f"{player}: {stat}")
+        else:
+            highlights.append(f"{player}: {stat}")
+
+    # Extract partnerships
+    partnership_pattern = r'(\d+)-run (?:stand|partnership) between ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*) and ([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)'
+    partnerships = re.findall(partnership_pattern, summary_text, re.IGNORECASE)
+
+    for runs, player1, player2 in partnerships:
+        highlights.append(f"{player1}-{player2} partnership: {runs} runs")
+
+    # Extract collapses or key moments
+    if 'collapse' in summary_text.lower():
+        collapse_pattern = r'(\d+)/(\d+).*?(\d+)'
+        collapses = re.findall(collapse_pattern, summary_text)
+        for wickets, runs, remaining in collapses:
+            if int(wickets) >= 5:
+                highlights.append(f"Collapse: {wickets} wickets for {remaining} runs")
+
+    # Remove duplicates and limit to top 4 highlights
+    unique_highlights = []
+    seen = set()
+    for highlight in highlights:
+        if highlight not in seen:
+            unique_highlights.append(highlight)
+            seen.add(highlight)
+
+    return unique_highlights[:4]  # Return top 4 highlights
+
+def generate_poster(data, output_path='comic.png'):
     required_fields = ['tournament_name', 'match_round', 'match_date', 'toss_winner', 'final_scores', 'result', 'summary']
     for field in required_fields:
         if field not in data:
             raise ValueError(f"Missing required field: {field}")
-    prompt = f"Create a comic strip image for a cricket match. Tournament: {data['tournament_name']}, Round: {data['match_round']}, Date: {data['match_date']}, Toss won by: {data['toss_winner']}, Final scores: {data['final_scores']['team1']} vs {data['final_scores']['team2']}, Result: {data['result']}. Summary: {data['summary']}. Make it a 4-panel comic strip in a fun, illustrative style."
+    # Extract key events from summary
+    key_events = extract_key_events(data['summary'])
+    events_text = "\n".join(f"- {event}" for event in key_events) if key_events else "- Exciting cricket action throughout the match"
+
+    prompt = f"""Create a professional cricket match poster for: {data['tournament_name']} {data['match_round']}
+
+MATCH DETAILS:
+- Date: {data['match_date']}
+- Toss: Won by {data['toss_winner']}
+- Final Scores: {data['final_scores']['team1']} | {data['final_scores']['team2']}
+- Result: {data['result']}
+
+KEY HIGHLIGHTS:
+{events_text}
+
+VISUAL DESIGN REQUIREMENTS:
+- Vibrant cricket-themed background with stadium atmosphere and crowd
+- Prominent centered scoreboard with large, bold typography for scores
+- Highlight boxes for key players and match moments
+- Team colors and national flags prominently displayed
+- Professional sports poster layout with dynamic cricket imagery
+- Bright, energetic color scheme celebrating the match victory
+- Include cricket-specific elements like wickets, bats, and balls
+- High-quality, detailed illustration style suitable for printing
+
+Make it an informative, visually stunning poster that captures the excitement and drama of this cricket match."""
     generator = os.getenv("GENERATOR", "openai").lower()
     if generator == "openai":
         api_key = os.getenv("OPENAI_API_KEY")
-        print("#########",api_key)
         if not api_key:
             raise ValueError("OPENAI_API_KEY environment variable not set")
         client = openai.OpenAI(api_key=api_key)
@@ -258,8 +327,8 @@ def main():
     args = parser.parse_args()
 
     data = load_input(args.input_file)
-    generate_comic(data, args.output)
-    print(f"Comic strip saved to {args.output}")
+    generate_poster(data, args.output)
+    print(f"Poster saved to {args.output}")
 
 if __name__ == "__main__":
     main()
