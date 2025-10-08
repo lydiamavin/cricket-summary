@@ -1,12 +1,11 @@
 {
-  "tournament_name": "IPL 2023",
+  "tournament_name": "Asia Cup 2025",
   "match_round": "Final",
-  "match_date": "2023-05-28",
+  "match_date": "2025-09-28",
   "toss_winner": "India",
   "final_scores": {
-    "team1": "India 250/5",
-    "team2": "Australia 245/7"
+    "team1": "India 150/5",
+    "team2": "Pakistan 146"
   },
-  "result": "India won by 5 wickets",
-  "summary": "Virat Kohli scored a brilliant century off 50 balls. Mitchell Starc took 3 wickets early. India chased down the target in the last over with a six."
-}
+  "result": "India defeated Pakistan by 5 wickets, winning the match with just 2 balls to spare.",
+  "summary": "Pakistan batted first and were bowled out for 146 in 19.1 overs. India chased 147. Indias chase was anchored by Tilak Varma, who remained 69 off 53 balls, and a vital 60-run partnership with Shivam Dube (33) for the 5th wicket.  he player who hit the winning boundary was Rinku Singh, striking a four in his only ball of the match. Pakistan began well, reaching 113/1, but then lost nine wickets for just 33 runs, getting bowled out for 146.  Kuldeep Yadav was instrumental, taking 4 for 30, and putting India in control.The 60-run stand between Varma and Dube steadied the innings and tilted momentum. "}

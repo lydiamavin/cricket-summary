@@ -40,30 +40,7 @@ def generate_comic(data, output_path='comic.png'):
         img_response = requests.get(image_url)
         with open(output_path, 'wb') as f:
             f.write(img_response.content)
-    elif generator == "gemini":
-        import google.generativeai as genai
-        import base64
-        from PIL import Image
-        import io
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not set")
-        genai.configure(api_key=api_key)
-        model = "imagen-3.0"
-        response = genai.generate_images(
-            model=model,
-            prompt=prompt
-        )
-        image_data = response.generated_images[0].data
-        image = Image.open(io.BytesIO(base64.b64decode(image_data)))
-        image.save(output_path)
-    elif generator == "craiyon":
-        import base64
-        response = requests.post("https://api.craiyon.com/generate", json={"prompt": prompt})
-        data = response.json()
-        image_data = data["images"][0]
-        with open(output_path, 'wb') as f:
-            f.write(base64.b64decode(image_data))
+
     elif generator == "grok":
         api_key = os.getenv("GROK_API_KEY")
         if not api_key:
@@ -78,8 +55,201 @@ def generate_comic(data, output_path='comic.png'):
         img_response = requests.get(image_url)
         with open(output_path, 'wb') as f:
             f.write(img_response.content)
+
+    elif generator == "piapi":
+        import time
+        api_key = os.getenv("PIAPI_API_KEY")
+        if not api_key:
+            raise ValueError("PIAPI_API_KEY environment variable not set")
+
+        # Create task
+        create_url = "https://api.piapi.ai/api/v1/task"
+        headers = {
+            "X-API-Key": api_key,
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "Qubico/flux1-dev",
+            "task_type": "txt2img",
+            "input": {
+                "prompt": prompt,
+                "width": 1024,
+                "height": 1024
+            }
+        }
+
+        create_response = requests.post(create_url, headers=headers, json=payload)
+        create_data = create_response.json()
+
+        if create_data.get("code") != 200:
+            raise ValueError(f"PiAPI task creation failed: {create_data}")
+
+        task_id = create_data["data"]["task_id"]
+        print(f"PiAPI task created with ID: {task_id}")
+
+        # Poll for completion
+        get_url = f"https://api.piapi.ai/api/v1/task/{task_id}"
+        max_attempts = 30  # 5 minutes with 10s intervals
+        attempt = 0
+
+        while attempt < max_attempts:
+            get_response = requests.get(get_url, headers={"X-API-Key": api_key})
+            get_data = get_response.json()
+
+            if get_data.get("code") != 200:
+                raise ValueError(f"PiAPI task retrieval failed: {get_data}")
+
+            status = get_data["data"]["status"]
+            print(f"Task status: {status}")
+
+            if status == "completed":
+                image_url = get_data["data"]["output"]["image_url"]
+                img_response = requests.get(image_url)
+                with open(output_path, 'wb') as f:
+                    f.write(img_response.content)
+                print(f"Image saved to {output_path}")
+                break
+            elif status == "failed":
+                error_msg = get_data["data"]["error"]["message"]
+                raise ValueError(f"PiAPI task failed: {error_msg}")
+
+            attempt += 1
+            time.sleep(10)  # Wait 10 seconds before checking again
+
+        if attempt >= max_attempts:
+            raise ValueError("PiAPI task timed out")
+
+    elif generator == "gemini":
+        import time
+        api_key = os.getenv("PIAPI_API_KEY")
+        if not api_key:
+            raise ValueError("PIAPI_API_KEY environment variable not set (required for Gemini generator)")
+
+        # Create task
+        create_url = "https://api.piapi.ai/api/v1/task"
+        headers = {
+            "X-API-Key": api_key,
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "gemini",
+            "task_type": "gemini-2.5-flash-image",
+            "input": {
+                "prompt": prompt,
+                "num_images": 1,
+                "output_format": "png"
+            }
+        }
+
+        create_response = requests.post(create_url, headers=headers, json=payload)
+        create_data = create_response.json()
+
+        if create_data.get("code") != 200:
+            raise ValueError(f"PiAPI Gemini task creation failed: {create_data}")
+
+        task_id = create_data["data"]["task_id"]
+        print(f"PiAPI Gemini task created with ID: {task_id}")
+
+        # Poll for completion
+        get_url = f"https://api.piapi.ai/api/v1/task/{task_id}"
+        max_attempts = 30  # 5 minutes with 10s intervals
+        attempt = 0
+
+        while attempt < max_attempts:
+            get_response = requests.get(get_url, headers={"X-API-Key": api_key})
+            get_data = get_response.json()
+
+            if get_data.get("code") != 200:
+                raise ValueError(f"PiAPI Gemini task retrieval failed: {get_data}")
+
+            status = get_data["data"]["status"]
+            print(f"Task status: {status}")
+
+            if status == "completed" or status == "success":
+                output = get_data["data"].get("output")
+                if not output:
+                    print(f"Task {status} but output is null. Full response: {get_data}")
+                    continue
+
+                # Handle different output formats
+                image_url = None
+                if "image_url" in output:  # Flux format
+                    image_url = output["image_url"]
+                elif "image_urls" in output and output["image_urls"]:  # Gemini format
+                    image_url = output["image_urls"][0]  # Take first image
+
+                if image_url:
+                    print(f"Downloading image from: {image_url}")
+                    img_response = requests.get(image_url)
+                    img_response.raise_for_status()  # Check for HTTP errors
+                    with open(output_path, 'wb') as f:
+                        f.write(img_response.content)
+                    print(f"Image saved to {output_path}")
+                    break
+                else:
+                    print(f"Task {status} but no image URL found in output: {output}")
+                    raise ValueError(f"Task completed but no image URL in output: {output}")
+            elif status == "failed":
+                error_msg = get_data["data"]["error"]["message"]
+                raise ValueError(f"PiAPI task failed: {error_msg}")
+
+            attempt += 1
+            time.sleep(10)  # Wait 10 seconds before checking again
+
+        if attempt >= max_attempts:
+            raise ValueError("PiAPI Gemini task timed out")
+
+    elif generator == "nano-banana":
+        import google.generativeai as genai
+
+        api_key = os.getenv("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable not set")
+
+        try:
+            genai.configure(api_key=api_key)
+
+            # Use Gemini 2.5 Flash Image model (Nano Banana)
+            model = genai.GenerativeModel('gemini-2.5-flash-image')
+
+            # Create image generation request
+            response = model.generate_content([
+                f"Generate a high-quality comic strip image for a cricket match: {prompt}",
+                "Make it a 4-panel comic strip in a fun, illustrative style."
+            ])
+
+            # Extract and save image from response
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if candidate.content and len(candidate.content.parts) > 0:
+                    part = candidate.content.parts[0]
+
+                    # Handle different response formats
+                    if hasattr(part, 'inline_data') and part.inline_data:
+                        # Base64 encoded image
+                        import base64
+                        image_data = base64.b64decode(part.inline_data.data)
+                        with open(output_path, 'wb') as f:
+                            f.write(image_data)
+                        print(f"Image saved to {output_path}")
+                    elif hasattr(part, 'text'):
+                        # Text response (not image)
+                        raise ValueError("Gemini returned text instead of image. The model may not support image generation in this context.")
+                    else:
+                        raise ValueError("Unexpected response format from Gemini API")
+                else:
+                    raise ValueError("No content in Gemini response")
+            else:
+                raise ValueError("No candidates in Gemini response")
+
+        except Exception as e:
+            if "not found for API version" in str(e):
+                raise ValueError("Gemini 2.5 Flash Image model not available. Try using PiAPI: GENERATOR=gemini PIAPI_API_KEY=your_key")
+            else:
+                raise ValueError(f"Gemini Nano Banana generation failed: {str(e)}")
+
     else:
-        raise ValueError("Invalid GENERATOR. Use 'openai', 'gemini', 'craiyon', or 'grok'")
+        raise ValueError("Invalid GENERATOR. Use 'openai', 'grok', 'piapi', 'gemini', or 'nano-banana'")
 
 def main():
     parser = argparse.ArgumentParser(description="Generate cricket comic strip from match data")
